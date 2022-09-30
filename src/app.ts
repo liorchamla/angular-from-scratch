@@ -1,6 +1,10 @@
 import { CreditCardDirective } from "./directives/CreditCardDirective";
 import { PhoneNumberDirective } from "./directives/PhoneNumberDirective";
 
+/**
+ * La liste des directives que le Framework devra connaître et
+ * mettre en oeuvre
+ */
 const directives = [PhoneNumberDirective, CreditCardDirective];
 
 /**
