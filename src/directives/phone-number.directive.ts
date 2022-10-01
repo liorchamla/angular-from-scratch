@@ -1,3 +1,7 @@
+import { Directive } from "../decorators/directive";
+import { HostBinding } from "../decorators/host-binding";
+import { HostListener } from "../decorators/host-listener";
+import { Input } from "../decorators/input";
 import { Formatter } from "../services/formatter";
 
 /**
@@ -5,31 +9,38 @@ import { Formatter } from "../services/formatter";
  *
  * Permet de formater un input avec le format d'un numéro de téléphone
  */
-export class PhoneNumberDirective {
+@Directive({
   /**
    * Le sélecteur CSS qui permettra de brancher la directive à des éléments HTML
    */
-  static selector = "[phone-number]";
+  selector: "[phone-number]",
 
   /**
    * Les définitions de service dont a besoin cette directive spécifiquement
    */
-  static providers = [
+  providers: [
     {
       provide: "formatter",
       construct: () => new Formatter("spécifique"),
     },
-  ];
-
+  ],
+})
+export class PhoneNumberDirective {
   /**
    * Permet de savoir si on souhaite formater avec des espaces ou non
    */
+  @Input("with-spaces")
   willHaveSpaces = true;
 
   /**
    * Permet de connaître la couleur de la bordure
    */
+  @Input("border-color")
+  @HostBinding("style.borderColor")
   borderColor = "red";
+
+  @HostBinding("value")
+  value = "";
 
   constructor(public element: HTMLElement, private formatter: Formatter) {}
 
@@ -39,34 +50,8 @@ export class PhoneNumberDirective {
    *
    * @param element L'<input> dont on veut formater la valeur
    */
-  formatPhoneNumber(element: HTMLInputElement) {
-    element.value = this.formatter.formatNumber(
-      element.value,
-      10,
-      2,
-      this.willHaveSpaces
-    );
-  }
-
-  init() {
-    // Si on a un attribut "with-spaces" : <input phone-number with-spaces="true|false">
-    if (this.element.hasAttribute("with-spaces")) {
-      // On récupère l'attribut sous forme de boolean
-      this.willHaveSpaces = this.element.getAttribute("with-spaces") === "true";
-    }
-
-    // Si on a un attribut "border-color" : <input phone-number border-color="green">
-    if (this.element.hasAttribute("border-color")) {
-      // On récupère l'attribut sous forme de string
-      this.borderColor = this.element.getAttribute("border-color")!;
-    }
-
-    // On positionne la couleur de la bordure
-    this.element.style.borderColor = this.borderColor;
-
-    // On ajoute une action à chaque frappe au clavier sur l'<input>
-    this.element.addEventListener("input", (event) => {
-      this.formatPhoneNumber(event.target as HTMLInputElement);
-    });
+  @HostListener("input", ["event.target.value"])
+  formatPhoneNumber(value: string) {
+    this.value = this.formatter.formatNumber(value, 10, 2, this.willHaveSpaces);
   }
 }

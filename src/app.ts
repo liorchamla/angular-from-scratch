@@ -1,3 +1,4 @@
+import { ChronoDirective } from "./directives/chrono.directive";
 import { CreditCardDirective } from "./directives/credit-card.directive";
 import { PhoneNumberDirective } from "./directives/phone-number.directive";
 import { Angular } from "./framework/framework";
@@ -16,7 +17,7 @@ Angular.bootstrapApplication({
    * La liste des directives que le Framework devra connaître et
    * mettre en oeuvre
    */
-  declarations: [PhoneNumberDirective, CreditCardDirective],
+  declarations: [PhoneNumberDirective, CreditCardDirective, ChronoDirective],
   /**
    * La liste des définitions de services que la Framework devra créer si les
    * directives lui demandent ces services par injection de dépendances
