@@ -1,3 +1,5 @@
+import { Formatter } from "../services/formatter";
+
 /**
  * Directive PhoneNumberDirective
  *
@@ -10,6 +12,16 @@ export class PhoneNumberDirective {
   static selector = "[phone-number]";
 
   /**
+   * Les définitions de service dont a besoin cette directive spécifiquement
+   */
+  static providers = [
+    {
+      provide: "formatter",
+      construct: () => new Formatter("spécifique"),
+    },
+  ];
+
+  /**
    * Permet de savoir si on souhaite formater avec des espaces ou non
    */
   willHaveSpaces = true;
@@ -19,7 +31,7 @@ export class PhoneNumberDirective {
    */
   borderColor = "red";
 
-  constructor(public element: HTMLElement) {}
+  constructor(public element: HTMLElement, private formatter: Formatter) {}
 
   /**
    * Formate la valeur d'un <input> en suivant les règles d'un
@@ -28,15 +40,12 @@ export class PhoneNumberDirective {
    * @param element L'<input> dont on veut formater la valeur
    */
   formatPhoneNumber(element: HTMLInputElement) {
-    const value = element.value.replace(/[^\d]/g, "").substring(0, 10);
-
-    const groups: string[] = [];
-
-    for (let i = 0; i < value.length; i += 2) {
-      groups.push(value.substring(i, i + 2));
-    }
-
-    element.value = groups.join(this.willHaveSpaces ? " " : "");
+    element.value = this.formatter.formatNumber(
+      element.value,
+      10,
+      2,
+      this.willHaveSpaces
+    );
   }
 
   init() {
