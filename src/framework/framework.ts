@@ -1,3 +1,13 @@
+import { Detector } from "./change-detector";
+import {
+  Binding,
+  Bindings,
+  FrameworkModule,
+  Providers,
+  ServiceInstances,
+} from "./types";
+import { NgZone } from "./zone";
+
 /**
  * La classe qui représente notre framework. Son but est de facilement connaître l'ensemble des directives
  * et providers existants et de faire la connexion entre toutes nos directives et les éléments de la page
@@ -10,20 +20,33 @@ export class Framework {
   /**
    * Un tableau qui contient l'ensemble des définitions se services dont dépendent les directives
    */
-  providers: { provide: string; construct: Function }[] = [];
+  providers: Providers = [];
   /**
    * Un tableau qui contient les services déjà instanciés afin de ne pas les réinstancier indéfiniment
    */
-  services: { name: string; instance: any }[] = [];
+  services: ServiceInstances = [];
 
   /**
    * Permet de lancer l'application qui va brancher chaque directive aux éléments ciblés
    * @param metadata Un objet qui contient les informations utilses : les directives et les providers
    */
-  bootstrapApplication(metadata: { declarations: any[]; providers?: any[] }) {
+  bootstrapApplication(metadata: FrameworkModule) {
     this.directives = metadata.declarations;
     this.providers = metadata.providers || [];
 
+    // On lance le Framework à l'intérieur d'ue Zone dans laquelle on a
+    // précisé qu'après chaque traitement appelé par le navigateur, on demanderait
+    // au Detector de mettre à jour ce qui doit l'être dans le HTML
+    NgZone.run(() => {
+      this.instanciateAndAttachDirectives();
+    });
+  }
+
+  /**
+   * Parcourt le tableau des directives existantes pour les instancier et les rattacher aux
+   * élement HTML qu'elles ciblent !
+   */
+  private instanciateAndAttachDirectives() {
     this.directives.forEach((directive) => {
       // Pour chaque directive, on récupère les éléments concernés par le sélecteur
       const elements = document.querySelectorAll<HTMLElement>(
@@ -38,10 +61,72 @@ export class Framework {
         // Grâce à l'API Reflect, on construit une instance de la directive en lui passant les
         // bons paramètres
         const directiveInstance = Reflect.construct(directive, params);
+
+        // On créé un Proxy de la directive qui nous permettra d'intervenir à chaque
+        // modification d'une propriété
+        const directiveProxy = this.createProxyForDirective(
+          directiveInstance,
+          element
+        );
+
         // On initialise la directive qui va agir sur l'élément HTML lié
-        directiveInstance.init();
+        directiveProxy.init();
       });
     });
+  }
+
+  /**
+   * Créé un Proxy pour une instance d'une directive et surveille les évolutions des propriétés
+   * de cette instance.
+   *
+   * Si la propriété qui est touchée est un binding (décorateur @HostBinding), alors on prévient le
+   * Detector qu'il faudra mettre à jour en fin de traitement (Zone.js) l'élément HTML lié
+   * à la Directive
+   *
+   * @param directive La classe de la Directive pour laquelle on créé un proxy
+   * @param directiveInstance L'instance de la Directive qui sera surveillée par ce proxy
+   * @param element L'élément HTML concerné
+   * @returns Le proxy de l'instance de la Directive
+   */
+  private createProxyForDirective(directiveInstance, element: HTMLElement) {
+    // On retourne un nouveau Proxy qui va surveiller l'instance de la Directive
+    return new Proxy(directiveInstance, {
+      // A chaque modification d'une propriété de l'instance de la directive
+      set: (directiveInstance, touchedPropName, newValue, proxy) => {
+        // On s'assure que la propriété touchée prend bien la nouvelle valeur :
+        directiveInstance[touchedPropName] = newValue;
+
+        // On regarde si la directive possède un Binding pour la propriété qui a été touchée
+        const binding = this.getDirectiveBinding(
+          directiveInstance,
+          touchedPropName
+        );
+        // Si la directive ne possède pas de binding pour la propriété
+        // qui a été touchée
+        if (!binding) {
+          return true;
+        }
+
+        // Si un binding existe, alors on prévient le Detector qu'il y a eu un changement
+        // pour cet élément HTML, pour cet attribut et cette valeur
+        Detector.addBinding(element, binding.attrName, newValue);
+
+        return true;
+      },
+    });
+  }
+
+  private getDirectiveBinding(
+    directiveInstance: { bindings: Bindings },
+    propName: string | symbol
+  ) {
+    if (!directiveInstance.bindings) {
+      return false;
+    }
+
+    return directiveInstance.bindings.find(
+      (b: Binding) => b.propName === propName
+    );
   }
 
   /**
@@ -71,7 +156,7 @@ export class Framework {
 
       // Si la directive a des providers, il faut regarder si elle fournit elle même une définition
       // pour le service
-      const directiveProviders = directive.providers || [];
+      const directiveProviders: Providers = directive.providers || [];
       // On cherche un provider dans la directive pour le service demandé
       const directiveProvider = directiveProviders.find(
         (p) => p.provide === name
