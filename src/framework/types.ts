@@ -125,6 +125,42 @@ export type DirectiveMetadata = {
   providers?: Providers;
 };
 
+export type ComponentMetadata = {
+  /**
+   * Le sélecteur CSS grâce auquel on connaît les éléments HTML à qui on devra
+   * greffer une instance de la directive
+   *
+   * Exemple #1 : '.phone' (tous les éléments dont la classe est "phone")
+   * Exemple #2 : 'input[phone]' (tous les éléments <input> qui ont l'attribut "phone")
+   */
+  selector: string;
+  /**
+   * Les définitions de services dont la directive a spécifiquement besoin.
+   * Ne pas utiliser si on peut se contenter des providers globaux, uniquement si la Directive
+   * a besoin de spécifier une définition particulière
+   *
+   * Exemple :
+   *
+   * {
+   *    provide: "formatter",
+   *    construct: () => return new Formatter("spécifique")
+   * }
+   */
+  providers?: Providers;
+
+  /**
+   * Le template HTML que le composant devra afficher, avec ses interpolations et ses
+   * bindings d'événements
+   *
+   * Exemple :
+   * `
+   *    <h1>{{ name }}</h1>
+   *    <button (click)="onClickButton">Click me</button>
+   * `
+   */
+  template: string;
+};
+
 /**
  * Représente l'objet que l'on doit envoyer à la fonction bootstrapApplication du Framework
  *
